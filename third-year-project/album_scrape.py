@@ -2,6 +2,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from bs4 import BeautifulSoup
+from unicodedata import normalize
 
 
 class AlbumScrape:
@@ -56,7 +57,7 @@ class AlbumScrape:
             artists += artists_soup
             albums += albums_soup
 
-        self.records = [[album, artist] for album, artist in zip(albums, artists)]
+        self.records += [[album, artist] for album, artist in zip(albums, artists)]
 
     def get_artist_album(self, soup):
 
@@ -89,7 +90,8 @@ class LAQAlbumScrape(AlbumScrape):
 class SkinnyAlbumScrape(AlbumScrape):
 
     def __init__(self, url, album_tag, album_class, artist_tag, artist_class, page_arr=None, extra_urls=None):
-        super().__init__(url, album_tag, album_class, artist_tag, artist_class)
+
+        super().__init__(url, album_tag, album_class, artist_tag, artist_class, page_arr, extra_urls)
 
     def get_artist_album(self, soup):
 
@@ -100,3 +102,23 @@ class SkinnyAlbumScrape(AlbumScrape):
         artist_soup = [artists_albums_soup[i][0] for i in range(0, len(artists_albums_soup))]
 
         return album_soup, artist_soup
+
+
+class NMEAlbumScrape(AlbumScrape):
+
+    def __init__(self, url, album_tag, album_class, artist_tag, artist_class, page_arr=None, extra_urls=None):
+
+        super().__init__(url, album_tag, album_class, artist_tag, artist_class, page_arr, extra_urls)
+
+    def get_artist_album(self, soup):
+
+        artists_albums_soup = soup.find_all(self.artist_tag, self.artist_class)
+        artists_albums_soup = [normalize("NFKD", artist_album.a.get_text(strip=True)).split(" review")[0].split(" – ")
+                               for artist_album in artists_albums_soup]
+
+        album_soup = [artists_albums_soup[i][1].replace("'", "") for i in range(0, len(artists_albums_soup))]
+        artist_soup = [artists_albums_soup[i][0] for i in range(0, len(artists_albums_soup))]
+
+        return album_soup, artist_soup
+
+
