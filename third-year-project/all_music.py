@@ -2,8 +2,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from bs4 import BeautifulSoup
-from album_scrape import AlbumScrape
-from album_scrape import LAQAlbumScrape
+from album_scrape import AlbumScrape, LAQAlbumScrape, SkinnyAlbumScrape
 
 service = Service(executable_path=ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
@@ -28,4 +27,10 @@ albums = []
 # laq_scrape.get_data()
 # laq_scrape.get_records()
 
+skinny_scrape = SkinnyAlbumScrape(url="https://www.theskinny.co.uk/music/reviews/albums?page={}",
+                                  album_tag="h2", album_class={"class": "item-title"},
+                                  artist_tag="h2", artist_class={"class": "item-title"},
+                                  page_arr=[x for x in range(1, 382)])
 
+skinny_scrape.get_data()
+print(skinny_scrape.get_records())
