@@ -233,3 +233,28 @@ class GigwiseAlbumScrape(SingleClassAlbumScrape):
 
         return album_soup, artist_soup
 
+
+class UTRAlbumScrape(AlbumScrape):
+
+    def __init__(self, url, album_tag, album_class, artist_tag, artist_class, page_arr=None, extra_urls=None):
+        super().__init__(url, album_tag, album_class, artist_tag, artist_class, page_arr, extra_urls)
+
+    def get_artist_album(self, soup):
+
+        artists_albums_soup = soup.find_all(self.artist_tag, self.artist_class)
+        artist_soup = [artist_album.h3.get_text() for artist_album in artists_albums_soup]
+        album_soup = [artist_album.h4.get_text() for artist_album in artists_albums_soup]
+
+        artists_albums_soup = [[artist_soup[x], album_soup[x]] for x in range(len(artist_soup))]
+
+        artist_soup = []
+        album_soup = []
+
+        for i in range(0, len(artists_albums_soup)):
+
+            if len(artists_albums_soup[i]) >= 2:
+                artist_soup += [artists_albums_soup[i][0]]
+                album_soup += [artists_albums_soup[i][1]]
+
+        return album_soup, artist_soup
+

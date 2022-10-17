@@ -3,7 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from bs4 import BeautifulSoup
 from album_scrape import AlbumScrape, LAQAlbumScrape, SkinnyAlbumScrape, NMEAlbumScrape, OHMAlbumScrape, \
-    SingleClassAlbumScrape, GuardianAlbumScrape, GigwiseAlbumScrape
+    SingleClassAlbumScrape, GuardianAlbumScrape, GigwiseAlbumScrape, UTRAlbumScrape
 
 service = Service(executable_path=ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
@@ -92,3 +92,13 @@ albums = []
 # gigwise_scrape.get_data()
 # print(gigwise_scrape.get_records())
 
+# utr_scrape = UTRAlbumScrape(url="https://www.undertheradarmag.com/reviews/category/music/P{}0",
+#                             artist_tag="div",
+#                             artist_class={"class": "headline"},
+#                             album_tag="div",
+#                             album_class={"class": "headline"},
+#                             page_arr=[x for x in range(1, 420)],
+#                             extra_urls="https://www.undertheradarmag.com/reviews/category/music")
+#
+# utr_scrape.get_data()
+# print(utr_scrape.get_records())
