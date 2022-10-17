@@ -174,4 +174,32 @@ class OHMAlbumScrape(AlbumScrape):
         return album_soup, artist_soup
 
 
+class GuardianAlbumScrape(SingleClassAlbumScrape):
+
+    def __init__(self, url, album_tag, album_class, page_arr=None, extra_urls=None):
+        super().__init__(url, album_tag, album_class, page_arr, extra_urls)
+
+    def get_artist_album(self, soup):
+
+        artists_albums_soup = soup.find_all(self.album_tag, self.album_class)
+        artists_albums_return = []
+
+        for artist_album in artists_albums_soup:
+
+            artist_album = artist_album.a.get_text()
+            artist_album = artist_album[artist_album.find("  ") + 1:]
+            artist_album = artist_album[: artist_album.find(" review")].strip().split(": ", 1)
+
+            artists_albums_return += [artist_album]
+
+        artist_soup = []
+        album_soup = []
+
+        for i in range(0, len(artists_albums_return)):
+
+            if len(artists_albums_return[i]) >= 2:
+                artist_soup += [artists_albums_return[i][0]]
+                album_soup += [artists_albums_return[i][1]]
+
+        return album_soup, artist_soup
 
