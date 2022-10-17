@@ -77,6 +77,17 @@ class SingleClassAlbumScrape(AlbumScrape):
         super().__init__(url, album_tag, album_class, artist_tag=None, artist_class=None,
                          page_arr=page_arr, extra_urls=extra_urls)
 
+    def get_artist_album(self, soup):
+
+        artists_albums_soup = soup.find_all(self.album_tag, self.album_class)
+        artists_albums_soup = [artist_album.a.get_text().split("- ") for artist_album in
+                               artists_albums_soup]
+
+        artist_soup = [artists_albums_soup[i][0] for i in range(0, len(artists_albums_soup))]
+        album_soup = [artists_albums_soup[i][1] for i in range(0, len(artists_albums_soup))]
+
+        return album_soup, artist_soup
+
 
 class LAQAlbumScrape(SingleClassAlbumScrape):
 

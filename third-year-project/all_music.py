@@ -2,7 +2,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from bs4 import BeautifulSoup
-from album_scrape import AlbumScrape, LAQAlbumScrape, SkinnyAlbumScrape, NMEAlbumScrape, OHMAlbumScrape
+from album_scrape import AlbumScrape, LAQAlbumScrape, SkinnyAlbumScrape, NMEAlbumScrape, OHMAlbumScrape, \
+    SingleClassAlbumScrape
 
 service = Service(executable_path=ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
@@ -43,11 +44,19 @@ albums = []
 # nme_scrape.get_data()
 # print(nme_scrape.get_records())
 
-ohm_scrape = OHMAlbumScrape(url="https://www.musicomh.com/reviews/albums/page/{}",
-                            header_tag="h2", header_class={"class": "title"},
-                            main_tag="div", main_class={"class": "images_hz"},
-                            page_arr=[x for x in range(1, 3)])
+# ohm_scrape = OHMAlbumScrape(url="https://www.musicomh.com/reviews/albums/page/{}",
+#                             header_tag="h2", header_class={"class": "title"},
+#                             main_tag="div", main_class={"class": "images_hz"},
+#                             page_arr=[x for x in range(1, 486)])
+#
+# ohm_scrape.get_data()
+# print(ohm_scrape.get_records())
 
-ohm_scrape.get_data()
-print(ohm_scrape.get_records())
+# diy_scrape = SingleClassAlbumScrape(url="https://diymag.com/reviews/album/p{}",
+#                                     album_tag="h3", album_class={"class": "h-headline"},
+#                                     page_arr=[x for x in range(2, 10001),
+#                                     extra_urls=["https://diymag.com/reviews/album/"])
+#
+# diy_scrape.get_data()
+# print(diy_scrape.get_records())
 
