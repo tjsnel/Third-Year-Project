@@ -55,8 +55,18 @@ albums = []
 # diy_scrape = SingleClassAlbumScrape(url="https://diymag.com/reviews/album/p{}",
 #                                     album_tag="h3", album_class={"class": "h-headline"},
 #                                     page_arr=[x for x in range(2, 10001),
-#                                     extra_urls=["https://diymag.com/reviews/album/"])
+#                                     extra_urls=["https://diymag.com/reviews/album/"],
+#                                     sep="- ")
 #
 # diy_scrape.get_data()
 # print(diy_scrape.get_records())
+
+# uncut_scrape = SingleClassAlbumScrape(url="https://www.uncut.co.uk/reviews/page/{}/",
+#                                       album_tag="h3",
+#                                       album_class={"class": "entry-title td-module-title"},
+#                                       page_arr=[x for x in range(1, 4)],
+#                                       sep=" – ")
+#
+# uncut_scrape.get_data()
+# print(uncut_scrape.get_records())
 

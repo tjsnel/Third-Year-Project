@@ -28,11 +28,12 @@ class AlbumScrape:
         if self.page_arr is None:
             self.page_arr = [x for x in range(1, 10001)]
 
-        for x in self.page_arr:
-            self.urls += [self.url.format(x)]
+        if self.url is not None:
+            for x in self.page_arr:
+                self.urls += [self.url.format(x)]
 
         if self.extra_urls is not None:
-            self.urls += self.extra_urls
+            self.urls += [self.extra_urls]
 
     def get_data(self):
 
@@ -73,18 +74,26 @@ class AlbumScrape:
 
 class SingleClassAlbumScrape(AlbumScrape):
 
-    def __init__(self, url, album_tag, album_class, page_arr, extra_urls):
+    def __init__(self, url, album_tag, album_class, page_arr=None, extra_urls=None, sep=None):
         super().__init__(url, album_tag, album_class, artist_tag=None, artist_class=None,
                          page_arr=page_arr, extra_urls=extra_urls)
+
+        self.sep = sep
 
     def get_artist_album(self, soup):
 
         artists_albums_soup = soup.find_all(self.album_tag, self.album_class)
-        artists_albums_soup = [artist_album.a.get_text().split("- ") for artist_album in
+        artists_albums_soup = [artist_album.a.get_text().split(self.sep, 1) for artist_album in
                                artists_albums_soup]
 
-        artist_soup = [artists_albums_soup[i][0] for i in range(0, len(artists_albums_soup))]
-        album_soup = [artists_albums_soup[i][1] for i in range(0, len(artists_albums_soup))]
+        artist_soup = []
+        album_soup = []
+
+        for i in range(0, len(artists_albums_soup)):
+            if len(artists_albums_soup[i]) >= 2:
+
+                artist_soup += [artists_albums_soup[i][0]]
+                album_soup += [artists_albums_soup[i][1]]
 
         return album_soup, artist_soup
 
@@ -112,7 +121,7 @@ class SkinnyAlbumScrape(SingleClassAlbumScrape):
 
     def get_artist_album(self, soup):
         artists_albums_soup = soup.find_all(self.artist_tag, self.artist_class)
-        artists_albums_soup = [artist_album.text.strip().split(" – ") for artist_album in artists_albums_soup]
+        artists_albums_soup = [artist_album.text.strip().split(" – ", 1) for artist_album in artists_albums_soup]
 
         album_soup = [artists_albums_soup[i][1] for i in range(0, len(artists_albums_soup))]
         artist_soup = [artists_albums_soup[i][0] for i in range(0, len(artists_albums_soup))]
@@ -127,7 +136,7 @@ class NMEAlbumScrape(SingleClassAlbumScrape):
 
     def get_artist_album(self, soup):
         artists_albums_soup = soup.find_all(self.artist_tag, self.artist_class)
-        artists_albums_soup = [normalize("NFKD", artist_album.a.get_text(strip=True)).split(" review")[0].split(" – ")
+        artists_albums_soup = [normalize("NFKD", artist_album.a.get_text(strip=True)).split(" review")[0].split(" – ", 1)
                                for artist_album in artists_albums_soup]
 
         album_soup = [artists_albums_soup[i][1].replace("'", "") for i in range(0, len(artists_albums_soup))]
@@ -151,9 +160,9 @@ class OHMAlbumScrape(AlbumScrape):
 
         headers_soup = soup.find_all(self.header_tag, self.header_class)
         main_soup = soup.find_all(self.main_tag, self.main_class)
-        headers_soup = [normalize("NFKD", artist_album.a.get_text(strip=True)).split(" – ")
+        headers_soup = [normalize("NFKD", artist_album.a.get_text(strip=True)).split(" – ", 1)
                         for artist_album in headers_soup]
-        main_soup = [normalize("NFKD", artist_album.h5.a.get_text(strip=True)).split(" – ")
+        main_soup = [normalize("NFKD", artist_album.h5.a.get_text(strip=True)).split(" – ", 1)
                      for artist_album in main_soup]
 
         album_soup = [main_soup[i][1] for i in range(0, len(main_soup))] + \
@@ -163,3 +172,6 @@ class OHMAlbumScrape(AlbumScrape):
                       [headers_soup[i][0] for i in range(0, len(headers_soup))]
 
         return album_soup, artist_soup
+
+
+
