@@ -64,9 +64,19 @@ albums = []
 # uncut_scrape = SingleClassAlbumScrape(url="https://www.uncut.co.uk/reviews/page/{}/",
 #                                       album_tag="h3",
 #                                       album_class={"class": "entry-title td-module-title"},
-#                                       page_arr=[x for x in range(1, 4)],
+#                                       page_arr=[x for x in range(1, 689)],
 #                                       sep=" – ")
 #
 # uncut_scrape.get_data()
 # print(uncut_scrape.get_records())
+
+# spectrum_scrape = SingleClassAlbumScrape(url="https://spectrumculture.com/category/music/music-reviews/page/{}/",
+#                                          album_tag="h2", album_class={"class": "entry-title"},
+#                                          page_arr=[x for x in range(1, 796)],
+#                                          sep=": ")
+#
+# spectrum_scrape.get_data()
+# print(spectrum_scrape.get_records())
+
+
 
