@@ -3,7 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from bs4 import BeautifulSoup
 from album_scrape import AlbumScrape, LAQAlbumScrape, SkinnyAlbumScrape, NMEAlbumScrape, OHMAlbumScrape, \
-    SingleClassAlbumScrape, GuardianAlbumScrape
+    SingleClassAlbumScrape, GuardianAlbumScrape, GigwiseAlbumScrape
 
 service = Service(executable_path=ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service)
@@ -78,10 +78,17 @@ albums = []
 # spectrum_scrape.get_data()
 # print(spectrum_scrape.get_records())
 
-guardian_scrape = GuardianAlbumScrape(url="https://www.theguardian.com/music+tone/albumreview?page={}",
-                                      album_tag="div",
-                                      album_class={"class": "fc-item__content fc-item__content--has-stars"},
-                                      page_arr=[x for x in range(1, 4)])
+# guardian_scrape = GuardianAlbumScrape(url="https://www.theguardian.com/music+tone/albumreview?page={}",
+#                                       album_tag="div",
+#                                       album_class={"class": "fc-item__content fc-item__content--has-stars"})
+#
+# guardian_scrape.get_data()
+# print(guardian_scrape.get_records())
 
-guardian_scrape.get_data()
-print(guardian_scrape.get_records())
+# gigwise_scrape = GigwiseAlbumScrape(url="https://gigwise.com/reviews?page=albums&p={}",
+#                                         album_tag="div",
+#                                         album_class={"class": "title"})
+#
+# gigwise_scrape.get_data()
+# print(gigwise_scrape.get_records())
+
