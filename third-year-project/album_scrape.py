@@ -3,22 +3,24 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from bs4 import BeautifulSoup
 from unicodedata import normalize
+import pandas as pd
 
 
 class AlbumScrape:
 
-    def __init__(self, url, album_tag, album_class, artist_tag, artist_class, page_arr=None, extra_urls=None):
+    def __init__(self, url, album_tag, album_class, artist_tag, artist_class, platform, page_arr=None, extra_urls=None):
 
         service = Service(executable_path=ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service)
         self.url = url
         self.urls = []
+        self.platform = platform
         self.page_arr = page_arr
         self.album_tag = album_tag
         self.album_class = album_class
         self.artist_tag = artist_tag
         self.artist_class = artist_class
-        self.records = []
+        self.records = pd.DataFrame()
         self.extra_urls = extra_urls
         self.artists = []
         self.albums = []
@@ -47,6 +49,7 @@ class AlbumScrape:
             try:
                 self.driver.get(url)
             except:
+                print("URL:", url, "has failed.")
                 break
 
             content = self.driver.page_source
@@ -58,7 +61,9 @@ class AlbumScrape:
             artists += artists_soup
             albums += albums_soup
 
-        self.records += [[album, artist] for album, artist in zip(albums, artists)]
+        self.records = pd.DataFrame({"Platform": [self.platform for x in range(len(artists))],
+                                     "Artist": artists,
+                                     "Album": albums})
 
     def get_artist_album(self, soup):
 
@@ -71,11 +76,18 @@ class AlbumScrape:
 
         return self.records
 
+    def write_records(self):
+
+        self.records.to_csv(
+            "C:\\Users\\tommy\\OneDrive\\Third Year Project\\Platform Album Data\\{}.csv".format(
+                self.platform
+            ))
+
 
 class SingleClassAlbumScrape(AlbumScrape):
 
-    def __init__(self, url, album_tag, album_class, page_arr=None, extra_urls=None, sep=None):
-        super().__init__(url, album_tag, album_class, artist_tag=None, artist_class=None,
+    def __init__(self, url, album_tag, album_class, platform, page_arr=None, extra_urls=None, sep=None):
+        super().__init__(url, album_tag, album_class, platform=platform, artist_tag=None, artist_class=None,
                          page_arr=page_arr, extra_urls=extra_urls)
 
         self.sep = sep
@@ -85,6 +97,10 @@ class SingleClassAlbumScrape(AlbumScrape):
         artists_albums_soup = soup.find_all(self.album_tag, self.album_class)
         artists_albums_soup = [artist_album.a.get_text().split(self.sep, 1) for artist_album in
                                artists_albums_soup]
+
+        return self.format_soups(artists_albums_soup)
+
+    def format_soups(self, artists_albums_soup):
 
         artist_soup = []
         album_soup = []
@@ -97,45 +113,41 @@ class SingleClassAlbumScrape(AlbumScrape):
 
         return album_soup, artist_soup
 
-
 class LAQAlbumScrape(SingleClassAlbumScrape):
 
-    def __init__(self, url, album_tag, album_class, page_arr=None, extra_urls=None):
-        super().__init__(url, album_tag, album_class, page_arr, extra_urls)
+    def __init__(self, url, album_tag, album_class, platform, page_arr=None, extra_urls=None):
+        super().__init__(url=url, album_tag=album_tag, album_class=album_class,
+                         page_arr=page_arr, extra_urls=extra_urls, platform=platform)
 
     def get_artist_album(self, soup):
-        artists_albums_soup = soup.find_all(self.artist_tag, self.artist_class)
-        artists_albums_soup = [artist_album.a.get_text(strip=True, separator='\n').splitlines() for artist_album in
+        artists_albums_soup = soup.find_all(self.album_tag, self.album_class)
+        artists_albums_soup = [artist_album.get_text(strip=True, separator='\n').splitlines() for artist_album in
                                artists_albums_soup]
 
-        artist_soup = [artists_albums_soup[i][0] for i in range(0, len(artists_albums_soup))]
-        album_soup = [artists_albums_soup[i][1] for i in range(0, len(artists_albums_soup))]
-
-        return album_soup, artist_soup
+        return self.format_soups(artists_albums_soup)
 
 
 class SkinnyAlbumScrape(SingleClassAlbumScrape):
 
-    def __init__(self, url, album_tag, album_class, page_arr=None, extra_urls=None):
-        super().__init__(url, album_tag, album_class, page_arr, extra_urls)
+    def __init__(self, url, album_tag, album_class, platform, page_arr=None, extra_urls=None):
+        super().__init__(url=url, album_tag=album_tag, album_class=album_class, page_arr=page_arr,
+                         extra_urls=extra_urls, platform=platform)
 
     def get_artist_album(self, soup):
-        artists_albums_soup = soup.find_all(self.artist_tag, self.artist_class)
+        artists_albums_soup = soup.find_all(self.album_tag, self.album_class)
         artists_albums_soup = [artist_album.text.strip().split(" – ", 1) for artist_album in artists_albums_soup]
 
-        album_soup = [artists_albums_soup[i][1] for i in range(0, len(artists_albums_soup))]
-        artist_soup = [artists_albums_soup[i][0] for i in range(0, len(artists_albums_soup))]
-
-        return album_soup, artist_soup
+        return self.format_soups(artists_albums_soup)
 
 
 class NMEAlbumScrape(SingleClassAlbumScrape):
 
-    def __init__(self, url, album_tag, album_class, page_arr=None, extra_urls=None):
-        super().__init__(url, album_tag, album_class, page_arr, extra_urls)
+    def __init__(self, url, album_tag, album_class, platform, page_arr=None, extra_urls=None):
+        super().__init__(url=url, album_tag=album_tag, album_class=album_class, page_arr=page_arr,
+                         extra_urls=extra_urls, platform=platform)
 
     def get_artist_album(self, soup):
-        artists_albums_soup = soup.find_all(self.artist_tag, self.artist_class)
+        artists_albums_soup = soup.find_all(self.album_tag, self.album_class)
         artists_albums_soup = [normalize("NFKD", artist_album.a.get_text(strip=True)).split(" review")[0].split(" – ", 1)
                                for artist_album in artists_albums_soup]
 
@@ -147,9 +159,10 @@ class NMEAlbumScrape(SingleClassAlbumScrape):
 
 class OHMAlbumScrape(AlbumScrape):
 
-    def __init__(self, url, header_tag, header_class, main_tag, main_class, page_arr=None, extra_urls=None):
+    def __init__(self, url, header_tag, header_class, main_tag, main_class, platform, page_arr=None,
+                 extra_urls=None):
         super().__init__(url, album_tag=None, album_class=None, artist_tag=None,
-                         artist_class=None, page_arr=page_arr, extra_urls=extra_urls)
+                         artist_class=None, page_arr=page_arr, extra_urls=extra_urls, platform=platform)
 
         self.header_tag = header_tag
         self.header_class = header_class
@@ -176,8 +189,9 @@ class OHMAlbumScrape(AlbumScrape):
 
 class GuardianAlbumScrape(SingleClassAlbumScrape):
 
-    def __init__(self, url, album_tag, album_class, page_arr=None, extra_urls=None):
-        super().__init__(url, album_tag, album_class, page_arr, extra_urls)
+    def __init__(self, url, album_tag, album_class, platform, page_arr=None, extra_urls=None):
+        super().__init__(url=url, album_tag=album_tag, album_class=album_class, page_arr=page_arr,
+                         extra_urls=extra_urls, platform=platform)
 
     def get_artist_album(self, soup):
 
@@ -192,22 +206,14 @@ class GuardianAlbumScrape(SingleClassAlbumScrape):
 
             artists_albums_return += [artist_album]
 
-        artist_soup = []
-        album_soup = []
-
-        for i in range(0, len(artists_albums_return)):
-
-            if len(artists_albums_return[i]) >= 2:
-                artist_soup += [artists_albums_return[i][0]]
-                album_soup += [artists_albums_return[i][1]]
-
-        return album_soup, artist_soup
+        return self.format_soups(artists_albums_return)
 
 
 class GigwiseAlbumScrape(SingleClassAlbumScrape):
 
-    def __init__(self, url, album_tag, album_class, page_arr=None, extra_urls=None, sep=None):
-        super().__init__(url, album_tag, album_class, page_arr, extra_urls, sep)
+    def __init__(self, url, album_tag, album_class, platform, page_arr=None, extra_urls=None, sep=None):
+        super().__init__(url=url, album_tag=album_tag, album_class=album_class,
+                         page_arr=page_arr, extra_urls=extra_urls, sep=sep, platform=platform)
 
     def get_artist_album(self, soup):
 
@@ -222,22 +228,16 @@ class GigwiseAlbumScrape(SingleClassAlbumScrape):
 
             artists_albums_return += [artist_album]
 
-        artist_soup = []
-        album_soup = []
-
-        for i in range(0, len(artists_albums_return)):
-
-            if len(artists_albums_return[i]) >= 2:
-                artist_soup += [artists_albums_return[i][0]]
-                album_soup += [artists_albums_return[i][1]]
-
-        return album_soup, artist_soup
+        return self.format_soups(artists_albums_return)
 
 
 class UTRAlbumScrape(AlbumScrape):
 
-    def __init__(self, url, album_tag, album_class, artist_tag, artist_class, page_arr=None, extra_urls=None):
-        super().__init__(url, album_tag, album_class, artist_tag, artist_class, page_arr, extra_urls)
+    def __init__(self, url, album_tag, album_class, artist_tag, artist_class,
+                 platform, page_arr=None, extra_urls=None):
+        super().__init__(url=url, album_tag=album_tag, album_class=album_class,
+                         artist_tag=artist_tag, artist_class=artist_class, page_arr=page_arr,
+                         extra_urls=extra_urls, platform=platform)
 
     def get_artist_album(self, soup):
 
