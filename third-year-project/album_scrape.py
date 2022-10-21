@@ -61,6 +61,10 @@ class AlbumScrape:
             artists += artists_soup
             albums += albums_soup
 
+            if len(artists) == 0:
+
+                break
+
         self.records = pd.DataFrame({"Platform": [self.platform for x in range(len(artists))],
                                      "Artist": artists,
                                      "Album": albums})
@@ -82,6 +86,12 @@ class AlbumScrape:
             "C:\\Users\\tommy\\OneDrive\\Third Year Project\\Platform Album Data\\{}.csv".format(
                 self.platform
             ))
+
+        self.close_connection()
+
+    def close_connection(self):
+
+        self.driver.close()
 
 
 class SingleClassAlbumScrape(AlbumScrape):
@@ -151,8 +161,13 @@ class NMEAlbumScrape(SingleClassAlbumScrape):
         artists_albums_soup = [normalize("NFKD", artist_album.a.get_text(strip=True)).split(" review")[0].split(" – ", 1)
                                for artist_album in artists_albums_soup]
 
-        album_soup = [artists_albums_soup[i][1].replace("'", "") for i in range(0, len(artists_albums_soup))]
-        artist_soup = [artists_albums_soup[i][0] for i in range(0, len(artists_albums_soup))]
+        album_soup = []
+        artist_soup = []
+
+        for i in range(len(artists_albums_soup)):
+            if len(artists_albums_soup[i]) >= 2:
+                album_soup += [artists_albums_soup[i][1].replace("'", "")]
+                artist_soup += [artists_albums_soup[i][0]]
 
         return album_soup, artist_soup
 
@@ -178,11 +193,18 @@ class OHMAlbumScrape(AlbumScrape):
         main_soup = [normalize("NFKD", artist_album.h5.a.get_text(strip=True)).split(" – ", 1)
                      for artist_album in main_soup]
 
-        album_soup = [main_soup[i][1] for i in range(0, len(main_soup))] + \
-                     [headers_soup[i][1] for i in range(0, len(headers_soup))]
+        artist_soup = []
+        album_soup = []
 
-        artist_soup = [main_soup[i][0] for i in range(0, len(main_soup))] + \
-                      [headers_soup[i][0] for i in range(0, len(headers_soup))]
+        for i in range(len(main_soup)):
+            if len(main_soup[i]) >= 2:
+                album_soup += [main_soup[i][1]]
+                artist_soup += [main_soup[i][0]]
+
+        for i in range(len(headers_soup)):
+            if len(headers_soup[i]) >= 2:
+                album_soup += [headers_soup[i][1]]
+                artist_soup += [headers_soup[i][0]]
 
         return album_soup, artist_soup
 
