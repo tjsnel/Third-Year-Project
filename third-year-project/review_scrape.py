@@ -5,11 +5,13 @@ from bs4 import BeautifulSoup
 from unicodedata import normalize
 import pandas as pd
 
+
 class ReviewScrape():
 
-    def __init__(self, df, platform, header_tag, header_class, body_tag, body_class, score_tag, score_class):
+    def __init__(self, df, platform, body_tag, body_class, score_tag, score_class,
+                 header_tag=None, header_class=None):
 
-        self.urls = df.loc[:, "Url"]
+        self.urls = df.loc[:, f"{platform}_url"]
         self.artists = df.loc[:, "Artist"]
         self.albums = df.loc[:, "Album"]
         self.header_tag = header_tag
@@ -25,7 +27,7 @@ class ReviewScrape():
 
     def get_data(self):
 
-        content = []
+        text = []
         scores = []
 
         for url in self.urls:
@@ -39,13 +41,17 @@ class ReviewScrape():
             content = self.driver.page_source
             soup = BeautifulSoup(content, features="html.parser")
 
-            content += [" ".join([self.get_headers(soup), self.get_body(soup)])]
+            if self.header_tag is not None:
+                text += [" ".join([self.get_headers(soup), self.get_body(soup)])]
+            else:
+                text += [self.get_body(soup)]
+
             scores += self.get_score(soup)
 
         self.records = pd.DataFrame({"Platform": [self.platform for x in range(len(self.urls))],
                                      "Album": self.albums,
                                      "Artist": self.artists,
-                                     "Content": content,
+                                     "Text": text,
                                      "Scores": scores,
                                      "Url": self.urls})
 
@@ -70,7 +76,7 @@ class ReviewScrape():
         score = soup.find_all(self.score_tag, self.score_class)
         score = self.format_score(score)
 
-        return [score]
+        return score
 
     def format_headers(self, headers):
 
@@ -82,7 +88,12 @@ class ReviewScrape():
 
     def format_score(self, score):
 
-        return score[0].text
+        if len(score) > 0:
+            score = score[0].text
+        else:
+            score = -1
+
+        return [score]
 
     def get_records(self):
 
@@ -90,10 +101,11 @@ class ReviewScrape():
 
     def write_records(self):
 
-        self.records.to_csv(
-            "C:\\Users\\tommy\\OneDrive\\Third Year Project\\Platform Album Data\\{}Reviews.csv".format(
-                self.platform
-            ))
+        self.records.to_hdf(
+            "C:\\Users\\tommy\\OneDrive\\Third Year Project\\Platform Album Data\\review_data.h5",
+            key=self.platform,
+            mode="a"
+            )
 
     def close_connection(self):
 
@@ -104,14 +116,16 @@ class GenreReviewScrape(ReviewScrape):
 
     def __init__(self, df, platform, header_tag, header_class, body_tag, body_class, score_tag, score_class, genre_tag,
                  genre_class):
-        super().__init__(df, platform, header_tag, header_class, body_tag, body_class, score_tag, score_class)
+        super().__init__(df=df, platform=platform, header_tag=header_tag, header_class=header_class,
+                         body_tag=body_tag, body_class=body_class, score_tag=score_tag,
+                         score_class=score_class)
 
         self.genre_tag = genre_tag
         self.genre_class = genre_class
 
     def get_data(self):
 
-        content = []
+        text = []
         scores = []
         genres = []
 
@@ -126,14 +140,14 @@ class GenreReviewScrape(ReviewScrape):
             content = self.driver.page_source
             soup = BeautifulSoup(content, features="html.parser")
 
-            content += [" ".join([self.get_headers(soup), self.get_body(soup)])]
+            text += [" ".join([self.get_headers(soup), self.get_body(soup)])]
             scores += self.get_score(soup)
-            genres += [", ".join(self.get_genres(soup))]
+            genres += [[", ".join(self.get_genres(soup))]]
 
         self.records = pd.DataFrame({"Platform": [self.platform for x in range(len(self.urls))],
                                      "Album": self.albums,
                                      "Artist": self.artists,
-                                     "Content": content,
+                                     "Text": text,
                                      "Scores": scores,
                                      "Genres": genres,
                                      "Url": self.urls})
@@ -149,27 +163,77 @@ class GenreReviewScrape(ReviewScrape):
 
     def format_genres(self, genres):
 
-        return [genre.text for genre in genres]
+        if len(genres) == 0:
+
+            genres = ["NA"]
+
+        else:
+
+            genres = [genre.text for genre in genres]
+
+        return genres
 
 
 class GuardianReviewScrape(GenreReviewScrape):
 
     def __init__(self, df, platform, header_tag, header_class, body_tag, body_class, score_tag, score_class,
                  genre_tag, genre_class):
-        super().__init__(df, platform, header_tag, header_class, body_tag, body_class, score_tag, score_class,
-                         genre_tag, genre_class)
+        super().__init__(df=df, platform=platform, header_tag=header_tag, header_class=header_class,
+                         body_tag=body_tag, body_class=body_class, score_tag=score_tag, score_class=score_class,
+                         genre_tag=genre_tag, genre_class=genre_class)
 
     def format_score(self, score):
-
-        return len(score)
+        return [5 - len(score)]
 
     def format_genres(self, genres):
-
         urls = []
 
         for url in genres:
-
             url = url.find("a").get("href")
             urls.append(url[url.find("music/") + 6:])
 
         return urls
+
+    def get_body(self, soup):
+
+        bodies = []
+
+        for tag in self.body_tag:
+
+            bodies += soup.find_all(tag, self.body_class)
+
+        bodies = self.format_bodies(bodies)
+
+        return bodies
+
+
+class PitchforkReviewScrape(GenreReviewScrape):
+
+    def __init__(self, df, platform, header_tag, header_class, body_tag, body_class, score_tag, score_class1,
+                 score_class2, genre_tag, genre_class):
+        super().__init__(df=df, platform=platform, header_tag=header_tag, header_class=header_class,
+                         body_tag=body_tag, body_class=body_class, score_tag=score_tag,
+                         score_class=score_class1, genre_tag=genre_tag, genre_class=genre_class)
+
+        self.score_class2 = score_class2
+
+    def get_score(self, soup):
+        score = soup.find_all(self.score_tag, self.score_class)
+
+        if len(score) == 0:
+            score = soup.find_all(self.score_tag, self.score_class2)
+
+        score = self.format_score(score)
+
+        return score
+
+
+class NMEReviewScrape(ReviewScrape):
+
+    def __init__(self, df, platform, body_tag, body_class, score_tag, score_class, header_tag, header_class):
+        super().__init__(df=df, platform=platform, body_tag=body_tag, body_class=body_class,
+                         score_tag=score_tag, score_class=score_class, header_tag=header_tag,
+                         header_class=header_class)
+
+    def format_score(self, score):
+        return [len(score)]
