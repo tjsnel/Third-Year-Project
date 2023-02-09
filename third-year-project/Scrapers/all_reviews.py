@@ -28,8 +28,6 @@ guardian_df = pd.read_csv("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third
                           index_col=0)
 guardian_scrape = GuardianReviewScrape(df=guardian_df,
                                        platform="Guardian",
-                                       header_tag="div",
-                                       header_class={"class": "dcr-1aw10i3"},
                                        body_tag=["div", "span", "span", "p"],
                                        body_class=[{"class": "dcr-1f36xae"}, {"class": "dcr-wio59t"},
                                                    {"class": "dcr-1gj3hdi"}, {"class": "dcr-1gj3hdi"}],
