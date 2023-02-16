@@ -1,21 +1,20 @@
+import re
+
 import pandas as pd
 import numpy as np
 import nltk
-from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
-from nltk.tokenize.nist import NISTTokenizer
 import ast
-from sklearn.svm import SVC
-from sklearn.naive_bayes import ComplementNB, GaussianNB, BernoulliNB
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import opinion_lexicon
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import stanza
+from sklearn.preprocessing import OneHotEncoder
+import keywords
 
 
-class Preprocess:
+class UnigramPreprocess:
     def __init__(self, path, ids):
         self.full_text = pd.read_hdf(path, key="text")
         self.full_sentence = pd.read_hdf(path, key="sentence")
@@ -64,6 +63,8 @@ class Preprocess:
         text["tag"] = tags
         text["ptag"] = self.get_offset(text, "tag", 1)
         text["ntag"] = self.get_offset(text, "tag", -1)
+        text["pptag"] = self.get_offset(text, "tag", 2)
+        text["nntag"] = self.get_offset(text, "tag", -2)
 
         # Lower case and remove stopwords
         text = self.to_lower(text, "Text")
@@ -98,13 +99,22 @@ class Preprocess:
         # Preprocess the sentence data
         text = self.preprocess_sentence(text)
 
+        # Classify whether each sentence is past tense or not
+        print("Getting tenses...")
+        text = self.get_sentence_tense(text)
+        print("Tenses retrieved")
+        print("Getting instrument subjects...")
+        # Get whether the adjective describes an instrument word
+        text = self.get_instrument_subject(text)
+        print("Instrument subjects retrieved")
+        # Reset index for remaining operations
+        # The above two require the indices to align with stopwords also
+        text = text.reset_index(drop=True)
+
         # Get opinion word proportions by sentence
         text = self.get_opinion_frequency(text)
         # Get metric for how far through the sentence each word is
         text = self.get_sentence_location(text)
-
-        # Classify whether each sentence is past tense or not
-        # text = self.get_sentence_tense(text)
 
         return text
 
@@ -117,6 +127,7 @@ class Preprocess:
         text = text.explode("Text")
         text["Word_Sentence id"] = text.groupby(["Review id", "Sentence id"]).cumcount()
         text["Word id"] = text.groupby(["Review id"]).cumcount()
+        text = text.reset_index(drop=True)
 
         # Remove stopwords
         text = self.to_lower(text, "Text")
@@ -199,35 +210,77 @@ class Preprocess:
         text = self.full_sentence.copy()
         text = self.get_desired_reviews(text)
         text = text.explode("Text")
+        text = text.reset_index(drop=True)
         text["Sentence id"] = text.groupby("Review id").cumcount()
         text.loc[:, "Text"] = text.loc[:, "Text"].apply(lambda x: " ".join(x))
         # Set up stanza object
         nlp = stanza.Pipeline(lang='en', processors='tokenize,pos,constituency', tokenize_pretokenized=True)
 
         # Get whether each sentence has a root past tense verb phrase or not
-        text["Past Tense"] = text.loc[:, "Text"].apply(lambda x: self.get_root_tense(x, nlp))
+        tense_labels = text.loc[:, "Text"].apply(lambda x: self.get_tense_labels(x, nlp))
         # Set the column accordingly
-        df = pd.merge(text.loc[:, ["Sentence id", "Review id", "Past Tense"]],
-                      df, on=["Sentence id", "Review id"], how="inner")
+        df["Past Tense"] = tense_labels.explode().reset_index(drop=True)
 
         return df
 
-    def get_root_tense(self, sentence, nlp):
+    def get_tense_labels(self, sentence, nlp):
         doc = nlp(sentence)
         queue = [doc.sentences[0].constituency.children[0]]
+        labels = []
 
         while queue:
             node = queue.pop(0)
-            if node.label == "VP":
-                if node.children[0].label == "VBD" or node.children[0].label == "VBN":
-                    return 1
-                else:
-                    return 0
-            else:
-                for child in node.children:
-                    queue.append(child)
+            if node.is_preterminal():
+                labels.append(0)
+            elif node.label == "VP":
+                if node.children[0].label == "VBD":
+                    labels = labels + [1 for _ in range(len(node.leaf_labels()))]
+                    continue
+            for child in node.children:
+                queue.insert(0, child)
 
-        return 0
+        return labels
+
+    def get_instrument_subject(self, df):
+        # Aggregate the text into sentences
+        text = self.full_sentence.copy()
+        text = self.get_desired_reviews(text)
+        text = text.explode("Text")
+        text = text.reset_index(drop=True)
+        text["Sentence id"] = text.groupby("Review id").cumcount()
+        text.loc[:, "Text"] = text.loc[:, "Text"].apply(lambda x: " ".join(x))
+        # Set up stanza object
+        nlp = stanza.Pipeline(lang='en', processors='pos,depparse,lemma,tokenize,mwt', tokenize_pretokenized=True)
+
+        # Get whether the object of the word is an instrument or not
+        instrument_labels = text.loc[:, "Text"].apply(lambda x: self.get_instrument_labels(x, nlp))
+        # Set the column accordingly
+        df["Instrument Subject"] = instrument_labels.explode().reset_index(drop=True)
+
+        return df
+
+    def get_instrument_labels(self, sentence, nlp):
+
+        instrument_words = keywords.get_instrument_words()
+        sentence = nlp(sentence)
+        deps = sentence.sentences[0].dependencies
+        labels = [0 for _ in range(len(sentence.sentences[0].words))]
+
+        for dep in deps:
+            if dep[1] == "amod":
+                adj_id = dep[2].id
+                subj_id = dep[0].id
+                subject_text = [dep[0].text]
+
+                for dep in deps:
+                    if dep[1] == "compound" and dep[0].id == subj_id:
+                        subject_text.append(dep[2].text)
+
+                if any([x in subject_text for x in instrument_words]):
+                    labels[adj_id - 1] = 1
+
+        return labels
+
 
     def format_text(self):
         word_sentence = pd.merge(self.format_words(), self.format_sentences(),
@@ -235,6 +288,10 @@ class Preprocess:
                                  how="inner")
         # Get the proportion of certain part of speech tags within sentences
         word_sentence = self.get_descriptive_frequency(word_sentence)
+        # Get whether each sentence references the artist
+        word_sentence = self.get_contains_artist(word_sentence)
+        # Get whether each sentence references the album title
+        word_sentence = self.get_contains_title(word_sentence)
 
         return word_sentence
 
@@ -248,100 +305,39 @@ class Preprocess:
 
         return df
 
+    def get_contains_artist(self, df):
+        contains_artist = df.groupby(["Review id", "Sentence id"]).agg(
+            {"Artist": "first", "Text": list, "tag": list}
+        ).reset_index()
+        artists = pd.DataFrame(df.loc[:, "Artist"].unique(), columns=["Artist"])
+        artists["Variations"] = artists.loc[:, "Artist"].apply(
+            lambda x: {variation for variation in x.split(" ") }
+            .union({variation + "'s" if variation[-1] != "s" else variation + "'" for variation in x.split(" ")})
+            .union({x})
+        )
+        contains_artist["Contains Artist"] = contains_artist.apply(
+            lambda x: any([word in artists.loc[artists["Artist"] == x.loc["Artist"], "Variations"].item()
+                           and tag == "NNP"
+                           for word, tag in zip(x["Text"], x["tag"])]),
+            axis=1
+        ).astype(int)
 
-form = pd.read_hdf("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-                   "Data\\new_unigram_data.h5", key="reduced_music_form")
+        df = pd.merge(df, contains_artist.drop(columns=["Text", "tag", "Artist"]), on=["Review id", "Sentence id"],
+                      how="inner")
 
-ids = form.loc[form["Desired"] == 1, "Review id"].unique()
+        return df
 
-preprocess = Preprocess("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-                        "Data\\new_unigram_data.h5", ids)
-form = pd.read_hdf("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-                   "Data\\new_unigram_data.h5", key="reduced_music_form")
+    def get_contains_title(self, df):
+        contains_title = df.groupby(["Review id", "Sentence id"]).agg(
+            {"Text": " ".join, "Album": "first"}
+        ).reset_index()
+        contains_title["Contains Title"] = contains_title.apply(
+            lambda x: x.loc["Album"] in x.loc["Text"],
+            axis=1
+        ).astype(int)
 
-sent_word = preprocess.format_text()
-sent_word = pd.merge(sent_word, form.loc[:, ["Word id", "Review id", "Desired"]], on=["Word id", "Review id"],
-                     how="inner")
+        df = pd.merge(df, contains_title.drop(columns=["Album", "Text"]), on=["Review id", "Sentence id"],
+                      how="inner")
 
-# Set predictors and target
-X = sent_word.drop(columns=["Desired", "Review id"])
-y = sent_word.loc[:, "Desired"]
+        return df
 
-# Scaler
-sc = StandardScaler()
-# Classifier
-clf = ComplementNB()
-# Encoder
-enc = OneHotEncoder()
-
-# Fit the encoder
-enc.fit(X.loc[:, ["ptag", "ntag", "Platform", "tag"]])
-# Encode any categorical variables
-one_hot = enc.transform(X.loc[:, ["ptag", "ntag", "Platform", "tag"]]).toarray()
-# Transform the data
-one_hot = pd.DataFrame(one_hot, columns=enc.get_feature_names_out())
-# Replace the columns with their one-hot variants
-X = pd.concat([X, one_hot], axis=1).drop(columns=["ptag", "ntag", "Text", "tag", "Platform", "Artist", "Album",
-                                                  "Word id", "Word_Sentence id", "Sentence id"])
-features = X.columns
-# sc.fit(X)
-# X = sc.transform(X)
-
-# X = pd.DataFrame(X)
-# y_balanced = pd.concat([y.loc[y == 1], y.loc[y != 1].sample(300, random_state=0)], axis=0)
-# X_balanced = pd.concat([X.loc[y == 1], X.loc[y != 1].sample(300, random_state=0)], axis=0)
-
-# clf.fit(X_balanced, y_balanced)
-
-albums = form.loc[form["Review id"].isin([99, 100, 101]), "Album"].unique()
-ids_test = form.loc[form["Album"].isin(["sour"]), "Review id"].unique()
-
-preprocess_test = Preprocess("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-                             "Data\\new_unigram_data.h5", ids_test)
-
-sent_word_test = preprocess_test.format_text()
-
-# Set predictors and target
-X_test = sent_word_test.drop(columns=["Review id"])
-# Fit the encoder
-enc.fit(X_test.loc[:, ["ptag", "ntag", "Platform", "tag"]])
-# Encode any categorical variables
-one_hot = enc.transform(X_test.loc[:, ["ptag", "ntag", "Platform", "tag"]]).toarray()
-# Transform the data
-one_hot = pd.DataFrame(one_hot, columns=enc.get_feature_names_out())
-# Replace the columns with their one-hot variants
-X_test = pd.concat([X_test, one_hot], axis=1).drop(
-    columns=["ptag", "ntag", "Text", "tag", "Platform", "Artist", "Album", "Word id", "Word_Sentence id",
-             "Sentence id"])
-# Missing columns from feature list
-missing_cols = [col for col in features if col not in X_test.columns]
-extra_cols = [col for col in X_test.columns if col not in features]
-
-# Make sure that the columns align between X and X_test
-X = pd.DataFrame(X)
-X = X.drop(columns=missing_cols)
-X_test = X_test.drop(columns=extra_cols)
-
-# sc.fit(X_test)
-# X_test = sc.transform(X_test)
-
-X.to_csv("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-         "Data\\X_data.csv")
-
-clf.fit(X, y)
-test_results = clf.predict_proba(X_test)
-
-test_results = sent_word_test.join(pd.DataFrame(test_results, columns=["neg_prob", "pos_prob"])).sort_values(
-    by=["pos_prob"], ascending=False)
-
-first_dict = {}
-
-for k, v in zip(test_results.loc[:, "Text"], test_results.loc[:, "pos_prob"]):
-    first_dict[k] = v
-
-cloud = WordCloud().generate_from_frequencies(first_dict)
-plt.imshow(cloud)
-plt.show()
-
-test_results.to_csv("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-                    "Data\\test_results.csv")

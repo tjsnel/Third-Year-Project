@@ -5,10 +5,10 @@ import ast
 text = pd.read_hdf("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
                    "Data\\new_unigram_data.h5", key="text")
 form = pd.read_hdf("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-                   "Data\\new_unigram_data.h5", key="music_form")
+                   "Data\\new_unigram_data.h5", key="reduced_music_form")
 
 progress = pd.read_csv("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-                       "Data\\progress_music.csv").iloc[0, 0]
+                       "Data\\reduced_music_progress.csv").iloc[0, 0]
 
 text = text.iloc[progress + 1:, :]
 
@@ -30,7 +30,7 @@ for i in range(len(text)):
         form.loc[(form["Review id"] == row.loc["Review id"]) & (form["Word id"] == desired), "Desired"] = 1
 
     form.to_hdf("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
-                "Data\\new_unigram_data.h5", key="music_form", mode="a")
+                "Data\\new_unigram_data.h5", key="reduced_music_form", mode="a")
     pd.DataFrame({"Progress": [progress + i]}, index=[0], columns=["Progress"]).to_csv(
-        "C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album Data\\progress_music.csv",
-        mode="w", index=False)
+        "C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album "
+        "Data\\reduced_music_progress.csv", mode="w", index=False)
