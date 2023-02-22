@@ -1,0 +1,36 @@
+---
+title: "Redisual Analysis"
+author: "Tommy Snelson"
+date: "2023-02-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rio)
+library(dplyr)
+library(magrittr)
+
+s_tbl <- import("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album Data\\ANOVA Datasets\\Spectrum.csv", setclass="tibble")
+p_tbl <- import("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album Data\\ANOVA Datasets\\Pitchfork.csv", setclass="tibble")
+s_tbl %<>% filter(Score >= 0)
+
+```
+
+```{r}
+
+s_lm <- aov(Score ~ Genres, data=s_tbl)
+anova(s_lm)
+
+```
+
+```{r}
+
+p_lm <- aov(Score ~ Genres, data=p_tbl)
+anova(p_lm)
+
+```
+
