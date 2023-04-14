@@ -164,11 +164,9 @@ class GenreReviewScrape(ReviewScrape):
     def format_genres(self, genres):
 
         if len(genres) == 0:
-
             genres = ["NA"]
 
         else:
-
             genres = [genre.text for genre in genres]
 
         return genres
@@ -184,15 +182,6 @@ class GuardianReviewScrape(GenreReviewScrape):
 
     def format_score(self, score):
         return [5 - len(score)]
-
-    def format_genres(self, genres):
-        urls = []
-
-        for url in genres:
-            url = url.find("a").get("href")
-            urls.append(url[url.find("music/") + 6:])
-
-        return urls
 
     def get_body(self, soup):
 

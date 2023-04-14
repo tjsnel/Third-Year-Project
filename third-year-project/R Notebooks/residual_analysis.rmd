@@ -18,6 +18,11 @@ s_tbl <- import("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Proj
 p_tbl <- import("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album Data\\ANOVA Datasets\\Pitchfork.csv", setclass="tibble")
 s_tbl %<>% filter(Score >= 0)
 
+dc_gp <- import("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album Data\\ANOVA Datasets\\dc_gp.csv", setclass="tibble")
+dc_gs <- import("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album Data\\ANOVA Datasets\\dc_gs.csv", setclass="tibble")
+dc_np <- import("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album Data\\ANOVA Datasets\\dc_np.csv", setclass="tibble")
+dc_ns <- import("C:\\Users\\tommy\\OneDrive\\University\\Year 3\\Third Year Project\\Platform Album Data\\ANOVA Datasets\\dc_ns.csv", setclass="tibble")
+
 ```
 
 ```{r}
@@ -31,6 +36,25 @@ anova(s_lm)
 
 p_lm <- aov(Score ~ Genres, data=p_tbl)
 anova(p_lm)
+
+```
+
+```{r}
+
+ps_tbl <- rbind(p_tbl %>% mutate(Score=Score*10), s_tbl)
+ps_lm <- lm(Score ~ Genres + Genres:Platform + Platform, data=ps_tbl)
+anova(ps_lm)
+
+```
+
+
+```{r}
+
+gs <- lm(`Spectrum Scores` ~ `Guardian Scores` + as.factor(`Guardian Scores`), data=dc_gs)
+ns <- lm(`Spectrum Scores` ~ `NME Scores` + as.factor(`NME Scores`), data=dc_ns)
+gp <- lm(`Pitchfork Scores` ~ `Guardian Scores` + as.factor(`Guardian Scores`), data=dc_gp)
+np <- lm(`Pitchfork Scores` ~ `NME Scores` + as.factor(`NME Scores`), data=dc_np)
+
 
 ```
 

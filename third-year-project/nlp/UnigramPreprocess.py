@@ -15,12 +15,17 @@ import keywords
 
 
 class UnigramPreprocess:
-    def __init__(self, path, ids):
+    def __init__(self, path, ids, train_ids=None):
         self.full_text = pd.read_hdf(path, key="text")
         self.full_sentence = pd.read_hdf(path, key="sentence")
         self.full_sentence.loc[:, "Text"] = self.full_sentence.loc[:, "Text"].apply(ast.literal_eval)
         self.full_form = pd.read_hdf(path, key="form")
         self.ids = set(ids.tolist())
+
+        if train_ids is None:
+            self.train_ids = ids
+        else:
+            self.train_ids = train_ids
 
     def to_lower(self, df, col):
         df.loc[:, col] = df.loc[:, col].astype(str).apply(lambda x: x.lower())
@@ -49,8 +54,11 @@ class UnigramPreprocess:
     def get_offset(self, df, col, offset):
         return df.loc[:, col].shift(offset)
 
-    def get_desired_reviews(self, df):
-        return df.loc[df.loc[:, "Review id"].apply(lambda x: x in self.ids)]
+    def get_desired_reviews(self, df, ids=None):
+        if ids is None:
+            ids = self.ids
+
+        return df.loc[df.loc[:, "Review id"].apply(lambda x: x in ids)]
 
     def format_words(self):
         # Filter by desired words
@@ -63,8 +71,6 @@ class UnigramPreprocess:
         text["tag"] = tags
         text["ptag"] = self.get_offset(text, "tag", 1)
         text["ntag"] = self.get_offset(text, "tag", -1)
-        text["pptag"] = self.get_offset(text, "tag", 2)
-        text["nntag"] = self.get_offset(text, "tag", -2)
 
         # Lower case and remove stopwords
         text = self.to_lower(text, "Text")
@@ -143,7 +149,7 @@ class UnigramPreprocess:
         text = self.remove_stop_list(text, "Text")
 
         # Save a copy and get only desired reviews
-        full_text = text.copy()
+        full_text = self.get_desired_reviews(text, self.train_ids)
         text = self.get_desired_reviews(text)
         # Get all text for every album
         text = text.loc[:, ["Album", "Text"]].groupby(["Album"]).agg({"Text": self.join_list})
@@ -163,13 +169,15 @@ class UnigramPreprocess:
 
         # For each album get all the relevant text Count the occurrences of each word and divide by the total number
         # of word to get the relative frequency of each lemmatised word
+
         for album in text.index:
             album_text = text.loc[album, "Text"]
             counts[album] = pd.value_counts(np.array(album_text)) / len(album_text)
 
             document_counts[album] = {}
-            for word in full_text.loc[album, "Text"]:
-                document_counts[album][word] = documents / full_text.loc[:, "Text"].apply(lambda x: word in x).sum()
+            for word in text.loc[album, "Text"]:
+                document_counts[album][word] = np.log(
+                    (documents + 1) / (full_text.loc[:, "Text"].apply(lambda x: word in x).sum() + 1))
 
         df["Platform TFIDF"] = df.apply(
             lambda x: counts[x.loc["Album"]][lemmatiser.lemmatize(x.loc["Text"])] *

@@ -30,11 +30,13 @@ guardian_scrape = GuardianReviewScrape(df=guardian_df,
                                        platform="Guardian",
                                        body_tag=["div", "span", "span", "p"],
                                        body_class=[{"class": "dcr-1f36xae"}, {"class": "dcr-wio59t"},
-                                                   {"class": "dcr-1gj3hdi"}, {"class": "dcr-1gj3hdi"}],
+                                                   {"class": "dcr-az7egx"}, {"class": "dcr-az7egx"}],
+                                       header_tag=None,
+                                       header_class=None,
                                        score_tag="path",
                                        score_class={"fill": "transparent"},
-                                       genre_tag="li",
-                                       genre_class={"class": "dcr-1ffx2ie"})
+                                       genre_tag="a",
+                                       genre_class={"class": "dcr-viu5to"})
 
 guardian_scrape.get_data()
 guardian_scrape.write_records()
